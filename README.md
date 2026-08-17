@@ -450,6 +450,45 @@ diffable when it changes.
 
 ---
 
+### AI/BI Genie — natural language access
+
+[`scripts/create_genie_space.py`](scripts/create_genie_space.py) provisions a
+Genie space so non-technical users can ask questions in plain English rather
+than filing a request for a SQL query.
+
+Genie is scoped to the **gold layer only** — those tables are small,
+business-named, and pre-aggregated, which is exactly what a text-to-SQL system
+needs. Pointing it at bronze would invite 30M-row scans and meaningless
+column names.
+
+**The instructions matter more than the table list.** Without them Genie would
+happily compute `purchases / carts` from raw counts and report a **110%
+cart-to-purchase rate** to a business user with no way to know it was wrong.
+The space is therefore given five instruction blocks:
+
+1. **The cart-tracking caveat** — always use `gold.funnel`, never divide raw
+   counts, and disclose that the cart stage is partly inferred
+2. **Other data caveats** — unknown-bucketing, purchase = completed sale, no
+   quantity column
+3. **Grain rules** — `gold.funnel` is one row (never `GROUP BY` it),
+   `hourly_pattern` is a daily profile not a time series, and gold tables must
+   never be joined to each other because each is independently aggregated
+4. **Business context** — revenue concentration, where the funnel actually
+   leaks, UTC→local time conversion
+5. **Worked SQL examples** for the most common questions
+
+Verified working. Asked *"What is our purchase funnel and where are we losing
+the most people?"*, Genie selected `gold.funnel`, returned the correct figures,
+identified view→cart as the drop-off — and **volunteered the caveat unprompted**:
+*"The cart stage is partly inferred due to tracking gaps."*
+
+Schema note: the `serialized_space` payload shape is not publicly documented
+and was determined empirically. Three constraints are easy to trip over and are
+handled in the script: `data_sources.tables` **must be sorted** by identifier,
+`instructions.text_instructions` accepts **at most one item** (separate
+paragraphs go in its `content` array), and `content` entries must be plain
+strings.
+
 ## 8. Business findings
 
 Full write-up with reasoning and recommendations:
@@ -506,6 +545,9 @@ scripts/
                        inside string literals, which this codebase has.
   run_pipeline.py      Orchestrates all five SQL layers in order. Idempotent.
   create_dashboard.py  Creates or updates the Lakeview dashboard
+  create_genie_space.py  Creates or updates the AI/BI Genie space, including
+                       the instructions that stop it reporting the broken
+                       raw funnel to business users
 
 docs/
   INSIGHTS.md          Business findings, reasoning, and recommendations
@@ -556,11 +598,15 @@ python3 scripts/run_pipeline.py
 Or a single layer: `python3 scripts/run_pipeline.py silver`.
 Layer names: `bronze`, `silver`, `gold`, `dq`, `governance`.
 
-### Refresh the dashboard
+### Refresh the dashboard and Genie space
 
 ```bash
 python3 scripts/create_dashboard.py
+python3 scripts/create_genie_space.py
 ```
+
+Both look up the existing object by name and update it in place, so re-running
+does not create duplicates.
 
 **The whole pipeline is idempotent.** Re-running is always safe: `COPY INTO`
 skips files it has already loaded, and silver/gold are `CREATE OR REPLACE`.
