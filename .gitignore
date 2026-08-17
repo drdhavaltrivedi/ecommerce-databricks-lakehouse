@@ -1,0 +1,9 @@
+*.csv
+*.csv.zip
+*.parquet
+.env
+kaggle.json
+access_token
+__pycache__/
+*.pyc
+.DS_Store
