@@ -16,11 +16,14 @@ REPO = os.path.dirname(HERE)
 SQL_DIR = os.path.join(REPO, "sql")
 
 LAYERS = [
-    ("bronze",     "01_bronze.sql"),
-    ("silver",     "02_silver.sql"),
-    ("gold",       "03_gold.sql"),
-    ("dq",         "04_data_quality.sql"),
-    ("governance", "05_governance.sql"),
+    ("bronze",        "01_bronze.sql"),
+    ("silver",        "02_silver.sql"),
+    ("gold",          "03_gold.sql"),
+    ("dq",            "04_data_quality.sql"),
+    ("governance",    "05_governance.sql"),
+    ("optimize",      "06_optimize.sql"),
+    ("security",      "07_security.sql"),
+    ("observability", "08_observability.sql"),
 ]
 
 REQUIRED_ENV = ["DATABRICKS_HOST", "DATABRICKS_TOKEN", "DBX_WAREHOUSE_ID"]

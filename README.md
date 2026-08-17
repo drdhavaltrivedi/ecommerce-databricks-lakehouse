@@ -489,6 +489,95 @@ handled in the script: `data_sources.tables` **must be sorted** by identifier,
 paragraphs go in its `content` array), and `content` entries must be plain
 strings.
 
+## 7b. Production hardening
+
+The model and dashboard answer the business question. These pieces are what
+make it survivable in production rather than a one-off analysis.
+
+### Performance — [`sql/06_optimize.sql`](sql/06_optimize.sql)
+
+**Liquid clustering** on `fact_events` by `(event_date, product_id)`, chosen
+over date partitioning for two reasons: at ~30M rows/month, date partitions are
+small enough to cause the small-file problem, and partitioning is a one-way door
+— changing the key means rewriting the table. Liquid clustering stays adjustable
+and handles skew, which matters because event volume is far from uniform across
+days and products. Achieved **0.93 clustering quality** on first run.
+
+Also: auto-optimize and auto-compact properties, tuned retention windows per
+layer (bronze is a reproducible reload, so a long time-travel window buys little
+and costs storage), and `ANALYZE ... COMPUTE STATISTICS` so the cost-based
+optimizer stops guessing cardinality on a 30M-row join.
+
+### Security and classification — [`sql/07_security.sql`](sql/07_security.sql)
+
+`user_id` is a surrogate, not a name — but it is a persistent identifier tied to
+an individual's browsing and purchase history, which makes it **pseudonymized,
+not anonymized**, and personal data under GDPR-style regimes. It is tagged as
+such, along with table-level tags for domain and PII presence.
+
+The tags are not decoration: they make *"where does personal data live"* a SQL
+query (`ecommerce.ops.pii_inventory`) instead of a tribal-knowledge question,
+which is exactly what gets asked during an access review.
+
+A **column mask** (`mask_user_id`) is defined but deliberately **not applied**.
+It hashes `user_id` for anyone outside `ecommerce_pii_readers`, deterministically
+— so `COUNT(DISTINCT)` and `GROUP BY` still work while the ability to single out
+a person is removed. It is left inactive because applying a mask keyed to a group
+that does not exist yet would break every existing query; the group is created
+first, then two commented `ALTER` statements activate it.
+
+### Scheduling — [`scripts/create_job.py`](scripts/create_job.py)
+
+A Databricks Workflow wiring the same SQL files into a dependency chain:
+
+```
+bronze → silver → gold → dq ─┐
+                 └ governance ┴→ optimize
+```
+
+Data quality runs **after** gold and **before** optimize, so a DQ regression
+surfaces before the expensive layout work runs. Tasks are SQL-file tasks on the
+same serverless warehouse — no cluster to size, no idle cost.
+
+**Created paused.** An unpaused schedule provisioned by a script starts
+consuming warehouse budget without whoever owns the bill agreeing to it.
+Enabling it is one click.
+
+### Monitoring — [`scripts/create_alerts.py`](scripts/create_alerts.py)
+
+`gold.data_quality` records defects, but a table nobody opens is not monitoring.
+Three alerts turn the failure modes that would silently corrupt every downstream
+number into notifications:
+
+| Alert | Threshold | Why this threshold |
+|---|---|---|
+| Cart tracking gap | > 60% | Baseline ~54%. Above 60% the funnel's cart stage is majority *inferred*, and view-to-cart should not be quoted without a caveat. |
+| Gold tables stale | > 36h | Job runs daily. 36h tolerates one missed run without crying wolf, but catches a genuinely stopped pipeline. |
+| Unlabeled categories | > 40% | Baseline ~32%. Above 40%, category rankings exclude so much catalog that merchandising decisions become unsafe. |
+
+Stale gold tables are the dangerous case: they look identical to fresh ones on a
+dashboard — the numbers are simply yesterday's.
+
+Alerts ship without a schedule or notification destination, for the same reason
+the job ships paused.
+
+### Platform observability — [`sql/08_observability.sql`](sql/08_observability.sql)
+
+Views over Unity Catalog **system tables**, in an `ecommerce.ops` schema. Views
+rather than tables — system tables are already maintained and always current, so
+materializing a copy would mean paying to duplicate free data.
+
+| View | Answers |
+|---|---|
+| `ops.daily_dbu_cost` | What is this costing, by day and SKU |
+| `ops.expensive_queries` | Which queries to optimize, ranked by *cumulative* time burned |
+| `ops.pipeline_runs` | Did the scheduled refresh actually run, and did it succeed |
+| `ops.table_usage` | Which tables are read — unread gold tables are maintenance burden with no return |
+| `ops.pii_inventory` | Where personal data lives, for audit and access review |
+
+For reference, building this entire project cost **~1.2 DBUs** of serverless SQL
+compute.
+
 ## 8. Business findings
 
 Full write-up with reasoning and recommendations:
@@ -535,6 +624,10 @@ sql/
   03_gold.sql          Nine business aggregate tables
   04_data_quality.sql  One row per DQ check, with business impact
   05_governance.sql    Comments, PK/FK constraints, CHECK constraint
+  06_optimize.sql      Liquid clustering, table properties, OPTIMIZE, ANALYZE
+  07_security.sql      PII tags, table tags, column-mask function (inactive)
+  08_observability.sql ops.* views over system tables: cost, query perf,
+                       pipeline runs, table usage, PII inventory
 
 scripts/
   split_upload.py      Streams a CSV out of the Kaggle zip into <5GiB parts and
@@ -548,6 +641,10 @@ scripts/
   create_genie_space.py  Creates or updates the AI/BI Genie space, including
                        the instructions that stop it reporting the broken
                        raw funnel to business users
+  create_job.py        Uploads sql/ to the workspace and creates the scheduled
+                       Workflow (created PAUSED)
+  create_alerts.py     Creates SQL alerts on data quality and freshness
+                       (no schedule or recipients by default)
 
 docs/
   INSIGHTS.md          Business findings, reasoning, and recommendations
