@@ -2,7 +2,7 @@
 
 A complete lakehouse implementation over the Kaggle
 [eCommerce behavior data from a multi category store](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store)
-dataset: ~30M raw clickstream events → Unity Catalog governed medallion data
+dataset: 42M raw clickstream events → Unity Catalog governed medallion data
 model → Lakeview dashboard → a documented set of business findings.
 
 This README is the single source of truth for **what was built, why each
@@ -72,8 +72,8 @@ Real behavioral data from a large multi-category online store, October–Novembe
 | `user_session` | Session identifier |
 
 **Scale**: 5.7GB / ~42M rows for October alone; 9GB for November.
-**Currently loaded**: October 2019 (see [section 12](#12-extending-this) for
-adding November).
+**Currently loaded**: all of October 2019 — 42,448,764 rows, Oct 1 00:00:00 to
+Oct 31 23:59:59 UTC (see [section 12](#12-extending-this) for adding November).
 
 The dataset documents `remove_from_cart` as a possible `event_type`, but it does
 **not appear** in the October file — only three event types are present. The
@@ -124,7 +124,7 @@ Each layer has exactly one job, which makes failures diagnosable:
   live.
 - **Gold** — *consumption*. Pre-aggregated, denormalized, named for the business
   question they answer. The dashboard reads **only** from gold, so a dashboard
-  query never scans 30M rows.
+  query never scans 42M rows.
 
 The alternative — one big transformation from CSV to dashboard — is faster to
 write once and impossible to debug or extend afterwards.
@@ -374,7 +374,8 @@ enough to invalidate the headline metric.
 
 ### The blocking issue: cart events are systematically under-logged
 
-The first funnel build produced this:
+The first funnel build — run on a partial load of ~30M rows while the rest was
+still uploading — produced this:
 
 ```
 cart_to_purchase_pct = 110.16%
@@ -383,8 +384,14 @@ cart_to_purchase_pct = 110.16%
 More sessions contained a purchase (450,901) than contained a cart (409,308).
 Arithmetically impossible in a funnel where cart precedes purchase.
 
-**Root cause**: **53.9% of purchasing sessions have no cart event at all.** The
-source tracking drops the cart step for over half of completed purchases.
+**Root cause**: **over half of purchasing sessions have no cart event at all.**
+The source tracking drops the cart step for the majority of completed purchases.
+
+The defect is structural, not a sampling artifact: it measured 53.9% on the
+partial load and **53.6% on the full month**, and the corrected funnel ratios
+likewise barely moved (cart→purchase 69.10% → 69.12%). Whatever is dropping
+cart events is doing so at a steady rate rather than in bursts, which points at
+a systematic tracking gap rather than intermittent event loss.
 
 **How it was handled** — the funnel is computed **monotonically**: a session
 that purchased is credited with having reached the cart stage, and any session
@@ -407,9 +414,9 @@ Result after the fix — and note the *direction* of the correction:
 
 | | Before (raw) | After (monotonic) |
 |---|---|---|
-| view → cart | 6.30% | **10.04%** |
-| cart → purchase | **110.16%** (impossible) | **69.10%** |
-| view → purchase | 6.94% | 6.94% |
+| view → cart | 6.14% | **9.85%** |
+| cart → purchase | **109.85%** (impossible) | **69.12%** |
+| view → purchase | 6.81% | 6.81% |
 
 The naive version did not just look silly — it **understated cart adds by 37%**
 and would have sent the team optimizing checkout, which is the part that already
@@ -419,12 +426,12 @@ works.
 
 | Check | Affected | % | Business consequence |
 |---|---|---|---|
-| `purchase_without_cart` | 243,245 sessions | **53.9%** of purchases | Funnel invalid unless computed monotonically |
-| `missing_category_code` | 9,610,028 rows | **32.1%** | 10.1% of revenue sits in an `unknown` bucket |
-| `missing_brand` | 4,211,149 rows | **14.1%** | Brand ranking biased toward well-tagged brands |
-| `multiday_sessions` | 11,631 sessions | 0.18% | Session ids reused across visits; inflates duration |
-| `zero_or_negative_price` | 49,322 rows | 0.16% | Distorts AOV if not excluded |
-| `purchase_without_view` | 560 sessions | 0.12% | Sessions starting mid-journey (deep links) |
+| `purchase_without_cart` | 337,699 sessions | **53.6%** of purchases | Funnel invalid unless computed monotonically |
+| `missing_category_code` | 13,515,609 rows | **31.8%** | 10.1% of revenue sits in an `unknown` bucket |
+| `missing_brand` | 6,113,008 rows | **14.4%** | Brand ranking biased toward well-tagged brands |
+| `multiday_sessions` | 17,086 sessions | 0.18% | Session ids reused across visits; inflates duration |
+| `zero_or_negative_price` | 68,670 rows | 0.16% | Distorts AOV if not excluded |
+| `purchase_without_view` | 939 sessions | 0.15% | Sessions starting mid-journey (deep links) |
 
 **Why this is a table and not a footnote**: it's queryable, it's on the
 dashboard, and it re-computes every pipeline run. If a future month arrives with
@@ -599,15 +606,15 @@ compute.
 
 Full write-up with reasoning and recommendations:
 **[`docs/INSIGHTS.md`](docs/INSIGHTS.md)**. Headlines from Oct 1–22 2019
-(~30M events, 6.5M sessions, 2.36M users, $164M revenue):
+(42.4M events, 9.2M sessions, 3.02M users, $229.9M revenue):
 
 **The funnel leaks at discovery, not checkout.** 69% of carts convert — checkout
 is healthy. But only 10% of viewing sessions ever cart. The addressable
 population upstream is roughly 3× the one at checkout, so that is where effort
 belongs.
 
-**$71.8M sits in abandoned carts** — 43.6% of realized revenue, 201,693
-sessions. Standard recovery campaigns recover 5–15%, implying $3.6M–$10.8M in a
+**$99.5M sits in abandoned carts** — 43.3% of realized revenue, 281,287
+sessions. Standard recovery campaigns recover 5–15%, implying $5.0M–$14.9M in a
 single month with no product or pricing change.
 
 **68% of revenue is smartphones.** A concentration risk that needs an explicit
@@ -615,14 +622,14 @@ strategic decision rather than a dashboard. Headphones (4.65% conversion, a
 natural attach) look like the most obvious adjacent opportunity.
 
 **Apple drives value, Samsung drives volume.** Samsung sells 21% more units;
-Apple earns 58% more revenue at a 2.9× AOV ($777 vs $268). These should not
+Apple earns 58% more revenue at a 2.9× AOV ($778 vs $268). These should not
 share a merchandising strategy.
 
-**Some categories are pure browsing.** `apparel.shoes` takes 431K views and
-returns $247K — a 0.66% conversion rate against smartphones' 4.85%. It consumes
+**Some categories are pure browsing.** `apparel.shoes` takes 613K views and
+returns $366K — a 0.69% conversion rate against smartphones' 4.79%. It consumes
 traffic and merchandising space disproportionate to its return.
 
-**11% of users buy, but 36% of buyers repeat within the month.** Weak
+**11.5% of users buy, but 38% of buyers repeat within the month.** Weak
 acquisition conversion, strong retention. That combination is a strong argument
 for aggressive first-purchase incentives, because the payback is unusually good.
 
@@ -791,4 +798,5 @@ the `COPY INTO` ledger skips it.
   orders cannot be distinguished from repeated single purchases.
 - **Anonymized.** No geography, channel, or campaign attribution, so acquisition
   analysis is out of scope.
-- **October only, partial** at time of writing (Oct 1–22, ~30M of ~42M rows).
+- **October 2019 only.** November (Black Friday / Cyber Monday) is the obvious
+  next load — see section 12.

@@ -1,7 +1,7 @@
 # What the data says, and what to do about it
 
-Based on October 2019 (partial month at time of writing: Oct 1–22, ~30M
-events, 6.5M sessions, 2.36M users, $164M realized revenue).
+Based on the full month of October 2019: 42.4M events, 9.2M sessions,
+3.02M users, $229.9M realized revenue.
 
 All figures come from `ecommerce.gold.*`. Read
 [the data quality section](#0-read-this-first-the-numbers-have-known-holes)
@@ -16,9 +16,9 @@ issues materially change how every other number should be read.
 
 | Issue | Scale | Why it matters |
 |---|---|---|
-| **Purchases with no cart event** | **53.9%** of purchasing sessions | The raw funnel produces a **110% cart→purchase rate** — arithmetically impossible. Cart events are systematically under-logged. |
-| **Missing `category_code`** | **32.1%** of rows | 10.1% of all revenue lands in an `unknown` category bucket. Category strategy built on the labeled 90% is skewed. |
-| **Missing `brand`** | **14.1%** of rows | Brand ranking is biased toward well-tagged brands. |
+| **Purchases with no cart event** | **53.6%** of purchasing sessions | The raw funnel produces a **>100% cart→purchase rate** — arithmetically impossible. Cart events are systematically under-logged. |
+| **Missing `category_code`** | **31.8%** of rows | 10.1% of all revenue lands in an `unknown` category bucket. Category strategy built on the labeled 90% is skewed. |
+| **Missing `brand`** | **14.4%** of rows | Brand ranking is biased toward well-tagged brands. |
 | Sessions spanning >24h | 0.18% | `user_session` ids get reused across visits, slightly depressing per-session conversion. |
 | Price ≤ 0 | 0.16% | Distorts AOV if not excluded from pricing analysis. |
 
@@ -40,10 +40,10 @@ currently guesswork.
 
 | Stage | Sessions | Conversion |
 |---|---|---|
-| Viewed | 6,501,390 | — |
-| Added to cart (adjusted) | 652,553 | **10.0%** |
-| Purchased | 450,901 | **69.1%** of carts |
-| **View → purchase** | | **6.94%** |
+| Viewed | 9,244,421 | — |
+| Added to cart (adjusted) | 910,796 | **9.9%** |
+| Purchased | 629,560 | **69.1%** of carts |
+| **View → purchase** | | **6.81%** |
 
 **The story**: checkout works. Once a shopper puts something in the cart,
 69% of the time they buy it — that's a healthy rate, and it means payment
@@ -63,10 +63,10 @@ That's roughly a 3× larger pool.
 
 | Category | Revenue | Share |
 |---|---|---|
-| `electronics.smartphone` | $112.2M | **68.2%** |
-| `computers.notebook` | $6.5M | 4.0% |
-| `electronics.video.tv` | $5.9M | 3.6% |
-| *(unlabeled)* | $16.6M | 10.1% |
+| `electronics.smartphone` | $157.0M | **68.3%** |
+| `computers.notebook` | $9.1M | 4.0% |
+| `electronics.video.tv` | $8.3M | 3.6% |
+| *(unlabeled)* | $23.2M | 10.1% |
 
 **Two-thirds of all revenue is smartphones.** This is a concentration risk:
 one supply disruption, one competitor price war, or one seasonal shift in
@@ -84,17 +84,17 @@ attach. There is likely untapped bundling revenue here.
 
 ---
 
-## 3. There is $71.8M sitting in abandoned carts
+## 3. There is $99.5M sitting in abandoned carts
 
-201,693 sessions added something to a cart and never bought.
-**That's $71.8M — equal to 43.6% of realized revenue.**
+281,287 sessions added something to a cart and never bought.
+**That's $99.5M — equal to 43.3% of realized revenue.**
 
 Even with the tracking caveat above (real abandonment is likely *higher*,
 since half of cart events go unlogged), this is the single largest
 recoverable revenue pool in the dataset.
 
 **What to do**: abandoned-cart email/push recovery campaigns typically
-recover 5–15% of abandoned value. Applied here, that's a **$3.6M–$10.8M**
+recover 5–15% of abandoned value. Applied here, that's a **$5.0M–$14.9M**
 opportunity in a single month, and it requires no change to the product or
 pricing — only to the messaging pipeline.
 
@@ -106,17 +106,17 @@ Categories with heavy traffic but near-zero conversion:
 
 | Category | Views | Conversion | Revenue |
 |---|---|---|---|
-| `apparel.shoes` | 430,943 | **0.66%** | $247K |
-| `apparel.shoes.keds` | 248,504 | 0.77% | $136K |
-| `furniture.living_room.cabinet` | 122,044 | 0.81% | $246K |
-| `computers.desktop` | 186,905 | 1.19% | $787K |
+| `apparel.shoes` | 612,965 | **0.69%** | $366K |
+| `apparel.shoes.keds` | 340,923 | 0.80% | $188K |
+| `furniture.living_room.sofa` | 152,164 | 0.71% | $570K |
+| `accessories.bag` | 152,009 | 0.82% | $53K |
 
-Compare with `electronics.smartphone` at **4.85%** — roughly **7× the
+Compare with `electronics.smartphone` at **4.79%** — roughly **7× the
 conversion rate of shoes**.
 
-**The story**: apparel.shoes pulls 431K views and returns $247K. It consumes
+**The story**: apparel.shoes pulls 613K views and returns $366K. It consumes
 significant merchandising real estate and traffic acquisition budget while
-generating 0.15% of revenue.
+generating 0.16% of revenue.
 
 **What to do**: this is either a sizing/returns-confidence problem (typical
 for footwear sold online without fit tooling), a pricing problem, or a
@@ -130,9 +130,9 @@ redirected to electronics attach categories.
 
 | Brand | Purchases | Revenue | AOV |
 |---|---|---|---|
-| Apple | 102,349 | **$79.6M** | **$777** |
-| Samsung | 123,473 | $33.1M | $268 |
-| Xiaomi | 40,305 | $6.5M | $161 |
+| Apple | 142,858 | **$111.2M** | **$778** |
+| Samsung | 172,878 | $46.4M | $268 |
+| Xiaomi | 56,609 | $9.2M | $162 |
 
 Samsung sells **21% more units** than Apple but generates **58% less
 revenue**. Apple's AOV is 2.9× Samsung's.
@@ -144,13 +144,13 @@ should not share a merchandising strategy.
 
 ---
 
-## 6. Only 11% of users ever buy — but repeat buyers are real
+## 6. Only 11.5% of users ever buy — but repeat buyers are real
 
-- 2,360,159 total users
-- 262,286 buyers (**11.1%**)
-- 95,142 repeat buyers — **36% of buyers come back within the month**
+- 3,022,290 total users
+- 347,118 buyers (**11.5%**)
+- 131,408 repeat buyers — **38% of buyers come back within the month**
 
-**The story**: the 11% purchase rate is the headline weakness, but the 36%
+**The story**: the 11.5% purchase rate is the headline weakness, but the 38%
 repeat rate among buyers is genuinely strong. The business converts poorly
 but retains well.
 
@@ -164,7 +164,7 @@ business with weak retention.
 
 ## 7. Traffic peaks 06:00–11:00 UTC
 
-Revenue peaks at hour 9 UTC ($13.2M), with 06:00–11:00 UTC forming the
+Revenue peaks at hour 9 UTC ($17.6M), with 06:00–11:00 UTC forming the
 clear daily band. The source store is Russian-market, so UTC+3 puts the
 real peak at **roughly 09:00–14:00 local time** — a workday-morning
 shopping pattern, not an evening one.
@@ -181,7 +181,7 @@ If only three things get done:
 
 1. **Fix cart-event tracking** — 54% of purchases have no cart event. This
    blinds every funnel decision until fixed. Engineering, not analytics.
-2. **Launch abandoned-cart recovery** — $71.8M pool, well-understood
+2. **Launch abandoned-cart recovery** — $99.5M pool, well-understood
    playbook, 5–15% typical recovery, no product changes needed.
 3. **Attack the view→cart step** — 90% of sessions leak here versus 31% at
    checkout. Three times the addressable population.
