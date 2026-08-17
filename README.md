@@ -203,6 +203,23 @@ Key properties, and why each matters:
 - **Multiple files in a directory are a feature, not a workaround.** Spark reads
   a directory of CSVs as one logical table, and it parallelizes better than one
   large file would.
+- **Uploads are retried and size-verified.** A multi-minute PUT over a consumer
+  connection will occasionally die mid-stream with a broken pipe — this happened
+  on the final part of the first full run, losing that part after the other five
+  had succeeded. Verification matters as much as the retry: a PUT can return
+  success while the stored object is short, and a truncated CSV sitting in the
+  volume would be ingested silently as real data. Each part is re-checked
+  against its local size, and an already-correct part is skipped, which makes a
+  crashed run resumable rather than restartable.
+
+### On throughput
+
+Measured upstream to the Databricks control plane from a normal office
+connection was **~2 MB/s**. That sets the floor: ~8 minutes per 1GB part, ~47
+minutes for a 5.67GB month. This is bandwidth, not a code problem — chunk size
+and connection count were not the limiting factor. Budget accordingly, and
+prefer running ingestion from a cloud host in the same region when loading
+multiple months.
 
 ### Why `COPY INTO` rather than `CREATE TABLE ... USING CSV`
 
