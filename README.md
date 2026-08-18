@@ -266,6 +266,63 @@ traced back to the exact file it came from.
 
 ## 5. The data model, layer by layer
 
+### The medallion flow, with what actually happens at each step
+
+```mermaid
+flowchart TD
+    subgraph SRC["SOURCE"]
+        CSV["2019-Oct.csv<br/>5.67 GB, 6 parts in a UC Volume"]
+    end
+
+    subgraph BRZ["BRONZE — fidelity (keep everything, change nothing)"]
+        BE["<b>bronze.events</b><br/>42,448,764 rows<br/>every column STRING<br/>+ source_file for lineage"]
+    end
+
+    subgraph SLV["SILVER — correctness (type it, clean it, model it)"]
+        FE["<b>silver.fact_events</b><br/>42,418,542 rows<br/>FACT · grain: one event"]
+        DP["<b>silver.dim_product</b><br/>166,794 rows<br/>DIM · grain: one product"]
+        DS["<b>silver.dim_session</b><br/>9,244,421 rows<br/>DIM · grain: one session"]
+    end
+
+    subgraph GLD["GOLD — consumption (pre-aggregated, named for the question)"]
+        GD["<b>Descriptive</b> · 9 tables<br/>daily_metrics · funnel<br/>cart_abandonment · category_performance<br/>brand_performance · top_products<br/>user_summary · hourly_pattern · data_quality"]
+        GO["<b>Diagnostic</b> · 5 tables<br/>intent_by_view_depth<br/>cart_conversion_by_price<br/>attach_opportunity<br/>price_change_effect<br/>category_recovery_check"]
+    end
+
+    CSV -->|"COPY INTO<br/>idempotent, per-file ledger"| BE
+
+    BE -->|"CAST to TIMESTAMP/BIGINT/DOUBLE<br/>SELECT DISTINCT drops 30,222 dupes<br/>blank brand becomes 'unknown'<br/>filter to known event_type"| FE
+    BE -->|"ROW_NUMBER by event_time DESC<br/>keeps latest attributes per product<br/>splits category_code into l1/l2"| DP
+    FE -->|"GROUP BY user_session<br/>derives has_view / has_cart / has_purchase<br/>this is what makes a funnel possible"| DS
+
+    FE --> GD
+    DS --> GD
+    FE --> GO
+    DS --> GO
+
+    style BRZ fill:#7a5c1e,stroke:#c89b3c,color:#fff
+    style SLV fill:#4a4a52,stroke:#9aa0a6,color:#fff
+    style GLD fill:#6b5210,stroke:#d4af37,color:#fff
+    style SRC fill:#2d3748,stroke:#718096,color:#fff
+```
+
+**Why the row counts change the way they do**
+
+| Step | Rows | What happened |
+|---|---|---|
+| Source CSV → bronze | 42,448,764 | 1:1. Bronze is a faithful copy — nothing dropped. |
+| Bronze → `fact_events` | 42,418,542 | −30,222 (0.07%). Almost entirely exact-duplicate events: only **2** rows failed the null/event-type filter, so 30,220 were dupes. |
+| `fact_events` → `dim_session` | 9,244,421 | Collapsed from events to **one row per session** — this is the grain change that makes funnel analysis possible. |
+| Bronze → `dim_product` | 166,794 | Deduplicated to **one row per product**, keeping the most recent attributes. |
+
+The 0.07% duplicate rate is what you'd expect from client-side retries and
+double-firing analytics tags — small, but worth removing before it inflates
+view counts.
+
+### Star schema
+
+The silver layer is a classic star: one fact table, two conformed dimensions.
+
 ```mermaid
 erDiagram
     dim_product ||--o{ fact_events : "product_id"
