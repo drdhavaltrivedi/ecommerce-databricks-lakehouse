@@ -91,7 +91,9 @@ datasets = [
              FROM ecommerce.gold.intent_by_view_depth WHERE view_band = '10+ views')      AS intent_pool_m,
           -- NB: must count DISTINCT sessions. Summing the per-category counts in
           -- gold.attach_opportunity double-counts any session that bought two
-          -- different attach categories, which inflates 2.12% to 2.30%.
+          -- different attach categories (caught this inflating the true rate by
+          -- ~0.2 points on the October-only data; the gap scales with traffic,
+          -- so always compute it this way rather than trusting the raw sum).
           (SELECT ROUND(COUNT(DISTINCT a.user_session)*100.0
                         / COUNT(DISTINCT p.user_session), 2)
              FROM (SELECT DISTINCT user_session FROM ecommerce.silver.fact_events
@@ -119,7 +121,7 @@ datasets = [
 
 widgets = [
     pos(markdown("title",
-        "# 42,448,764 real shopping events, analysed\n"
+        "# 109,950,743 real shopping events, analysed\n"
         "### Three things this store did not know it was losing money on"), 0, 0, 6, 2),
 
     pos(counter("c_rev",    "headline", "revenue_m",     "Revenue analysed ($M)"),        0, 2, 3, 3),
@@ -138,7 +140,7 @@ widgets = [
     pos(chart("intent_chart", "intent", "view_band", "conversion_pct",
               "Viewed it 10+ times? 43% buy. Viewed once? Nobody."), 0, 17, 3, 6),
     pos(chart("attach_chart", "attach", "attached_category", "sessions",
-              "What phone buyers also buy - only 2.1% buy anything"), 3, 17, 3, 6),
+              "What phone buyers also buy - only ~2.5% buy anything"), 3, 17, 3, 6),
 ]
 
 serialized = {

@@ -3,7 +3,7 @@
 > ### In short
 >
 > **The problem**
-> An online store had 42 million rows of raw click logs sitting in a file — nobody
+> An online store had 110 million rows of raw click logs across two months — nobody
 > could query it, and nobody knew why half of all shopping carts were being
 > abandoned or where the money was leaking.
 >
@@ -18,7 +18,7 @@
 
 A complete lakehouse implementation over the Kaggle
 [eCommerce behavior data from a multi category store](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store)
-dataset: 42M raw clickstream events → Unity Catalog governed medallion data
+dataset: 110M raw clickstream events across Oct–Nov 2019 → Unity Catalog governed medallion data
 model → Lakeview dashboard + AI/BI Genie → a documented set of business findings
 and five sized, actionable problems.
 
@@ -94,8 +94,14 @@ Real behavioral data from a large multi-category online store, October–Novembe
 | `user_session` | Session identifier |
 
 **Scale**: 5.7GB / ~42M rows for October alone; 9GB for November.
-**Currently loaded**: all of October 2019 — 42,448,764 rows, Oct 1 00:00:00 to
-Oct 31 23:59:59 UTC (see [section 13](#13-extending-this) for adding November).
+**Currently loaded**: October and November 2019 — 109,950,743 rows, Oct 1
+00:00:00 to Nov 30 23:59:59 UTC (see [section 13](#13-extending-this) for
+adding further months). Adding November surfaced a real finding of its own:
+the cart-event tracking defect described in
+[the data quality section](docs/INSIGHTS.md#0-read-this-first-the-numbers-have-known-holes)
+more than halved between the two months (53.6% → 16.2% of purchases missing a
+cart event), which means it isn't the stable, systematic defect an
+October-only read concluded it was.
 
 The dataset documents `remove_from_cart` as a possible `event_type`, but it does
 **not appear** in the October file — only three event types are present. The
@@ -275,7 +281,7 @@ flowchart TD
     end
 
     subgraph BRZ["BRONZE — fidelity (keep everything, change nothing)"]
-        BE["<b>bronze.events</b><br/>42,448,764 rows<br/>every column STRING<br/>+ source_file for lineage"]
+        BE["<b>bronze.events</b><br/>109,950,743 rows<br/>every column STRING<br/>+ source_file for lineage"]
     end
 
     subgraph SLV["SILVER — correctness (type it, clean it, model it)"]
@@ -310,7 +316,7 @@ flowchart TD
 
 | Step | Rows | What happened |
 |---|---|---|
-| Source CSV → bronze | 42,448,764 | 1:1. Bronze is a faithful copy — nothing dropped. |
+| Source CSVs → bronze | 109,950,743 | 1:1 across both months. Bronze is a faithful copy — nothing dropped. |
 | Bronze → `fact_events` | 42,418,542 | −30,222 (0.07%). Almost entirely exact-duplicate events: only **2** rows failed the null/event-type filter, so 30,220 were dupes. |
 | `fact_events` → `dim_session` | 9,244,421 | Collapsed from events to **one row per session** — this is the grain change that makes funnel analysis possible. |
 | Bronze → `dim_product` | 166,794 | Deduplicated to **one row per product**, keeping the most recent attributes. |
@@ -488,11 +494,20 @@ Arithmetically impossible in a funnel where cart precedes purchase.
 **Root cause**: **over half of purchasing sessions have no cart event at all.**
 The source tracking drops the cart step for the majority of completed purchases.
 
-The defect is structural, not a sampling artifact: it measured 53.9% on the
-partial load and **53.6% on the full month**, and the corrected funnel ratios
-likewise barely moved (cart→purchase 69.10% → 69.12%). Whatever is dropping
-cart events is doing so at a steady rate rather than in bursts, which points at
-a systematic tracking gap rather than intermittent event loss.
+Within October, the defect looked structural rather than a sampling artifact:
+it measured 53.9% on the partial load and 53.6% on the full month, with the
+corrected funnel ratios barely moving (cart→purchase 69.10% → 69.12%).
+
+**That conclusion did not survive adding a second month, and the correction is
+worth stating plainly rather than letting the original claim stand.** Testing
+partial-October against full-October only checks stability *within* one
+month. Once November was loaded, the same check across *different* months
+told a different story: the defect rate more than halved, from 53.6% in
+October to 16.2% in November — see
+[`docs/INSIGHTS.md` §0](docs/INSIGHTS.md#0-read-this-first-the-numbers-have-known-holes)
+for the full month-over-month breakdown. Something changed operationally
+around November 1st; the gap is real and worth fixing, but it is not the
+steady, systematic defect this section originally concluded it was.
 
 **How it was handled** — the funnel is computed **monotonically**: a session
 that purchased is credited with having reached the cart stage, and any session
@@ -749,7 +764,8 @@ rather than a misleading yes.
 
 Full write-up with reasoning and recommendations:
 **[`docs/INSIGHTS.md`](docs/INSIGHTS.md)**. Headlines from Oct 1–22 2019
-(42.4M events, 9.2M sessions, 3.02M users, $229.9M revenue):
+(109.9M events, 23.1M sessions, 5.32M users, $505.1M revenue,
+October–November combined):
 
 **The funnel leaks at discovery, not checkout.** 69% of carts convert — checkout
 is healthy. But only 10% of viewing sessions ever cart. The addressable

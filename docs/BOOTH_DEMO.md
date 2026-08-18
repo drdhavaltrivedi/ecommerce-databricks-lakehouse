@@ -22,7 +22,8 @@ conversation, and only with the people who ask for it.
 ### 0:00 — The hook (say this before showing anything)
 
 > "Everyone in this hall thinks cart abandonment is a pricing problem.
-> We analysed 42 million real shopping events and it isn't. Want to see?"
+> We analysed 110 million real shopping events across two months and it
+> isn't. Want to see?"
 
 That challenges a belief they already hold. It works because it is specific,
 falsifiable, and about *their* problem. Do not open with "we built a lakehouse".
@@ -48,13 +49,13 @@ Point at the **cart conversion by price** chart.
 
 Point at the two counters.
 
-> "Two more. Only 2% of people buying a phone here bought anything with it —
-> no case, no headphones, nothing. In phone retail that's where the margin
-> lives, and it's switched off. That's about $2.6M a month.
+> "Two more. Only about 2.5% of people buying a phone here bought anything
+> with it — no case, no headphones, nothing. In phone retail that's where the
+> margin lives, and it's switched off. That's about $2.9M a month.
 >
-> And $41.6M sits with people who looked at the same product ten or more times
-> and never got asked to buy. Those customers convert at 43% when they do buy.
-> They're already interested. Nobody followed up."
+> And $166 million sits with people who looked at the same product ten or
+> more times and never got asked to buy. Those customers convert at 29% when
+> they do buy. They're already interested. Nobody followed up."
 
 ### 1:10 — Hand them the keyboard (Genie)
 
@@ -160,7 +161,7 @@ to keep paying after the stand closes.
 
 **"Is this your client's data?"**
 No — and be precise here. It's a **public Kaggle dataset from a real
-multi-category retailer, October 2019**. Someone in this audience may well
+multi-category retailer, October–November 2019**. Someone in this audience may well
 recognise it. Presenting it as a client engagement would be dishonest and is the
 one thing that could actually damage you at this show. The work is the model and
 the analysis, and that stands on its own.
@@ -172,7 +173,8 @@ changes is the category taxonomy and whatever their tracking gaps turn out to be
 
 **"How long did this take?"**
 Be honest. It's a strong answer, not a weak one — the pipeline rebuilds in under
-five minutes and the whole build cost about 1.2 DBUs of serverless compute.
+ten minutes and the whole two-month build cost under 10 DBUs of serverless
+> compute.
 
 **"What would you do first for us?"**
 Data quality audit. Every finding here came *after* discovering the tracking gap.

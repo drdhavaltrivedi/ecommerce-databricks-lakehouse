@@ -1,38 +1,60 @@
 # What the data says, and what to do about it
 
-Based on the full month of October 2019: 42.4M events, 9.2M sessions,
-3.02M users, $229.9M realized revenue.
+Based on the full two months now loaded, October–November 2019: 109.9M events,
+23.1M sessions, 5.32M users, $505.1M realized revenue across 61 days.
 
 All figures come from `ecommerce.gold.*`. Read
 [the data quality section](#0-read-this-first-the-numbers-have-known-holes)
-before quoting any of them.
+before quoting any of them — and read it even if you already have, because
+adding November changed the story, not just the totals.
 
 ---
 
-## 0. Read this first: the numbers have known holes
+## 0. Read this first: the numbers have known holes — and one hole moves month to month
 
-`gold.data_quality` is a first-class table, not an afterthought, because three
-issues materially change how every other number should be read.
+`gold.data_quality` is a first-class table, not an afterthought.
 
 | Issue | Scale | Why it matters |
 |---|---|---|
-| **Purchases with no cart event** | **53.6%** of purchasing sessions | The raw funnel produces a **>100% cart→purchase rate** — arithmetically impossible. Cart events are systematically under-logged. |
-| **Missing `category_code`** | **31.8%** of rows | 10.1% of all revenue lands in an `unknown` category bucket. Category strategy built on the labeled 90% is skewed. |
-| **Missing `brand`** | **14.4%** of rows | Brand ranking is biased toward well-tagged brands. |
-| Sessions spanning >24h | 0.18% | `user_session` ids get reused across visits, slightly depressing per-session conversion. |
-| Price ≤ 0 | 0.16% | Distorts AOV if not excluded from pricing analysis. |
+| **Purchases with no cart event** | **32.97%** of purchasing sessions, combined — but **53.6% in October vs. 16.2% in November** | See below — this is not a stable defect. |
+| **Missing `category_code`** | **32.2%** of rows | 10.5% of all revenue lands in an `unknown` category bucket. Stable across both months. |
+| **Missing `brand`** | **13.9%** of rows | Brand ranking is biased toward well-tagged brands. Stable across both months. |
+| Sessions spanning >24h | 0.17% | `user_session` ids get reused across visits. |
+| Price ≤ 0 | 0.23% | Distorts AOV if not excluded from pricing analysis. |
 
-**The fix applied**: `gold.funnel` is computed **monotonically** — a session
-that purchased is credited with reaching the cart stage even when no cart
-event was logged. The raw count is preserved alongside it
-(`sessions_cart_logged`, `purchases_missing_cart_event`) so the gap stays
-visible rather than being silently smoothed over.
+**This correction matters, so it's stated plainly**: an earlier version of this
+document, written against October alone, argued the cart-tracking gap was
+*"a systematic defect... at a steady rate rather than in bursts."* That claim
+was based on comparing a partial October load against the complete one — the
+same month, sampled twice. It was never tested against a *different* month.
+Now that November has been added, it's clear that conclusion doesn't hold:
 
-**What to fix at the source**: the cart-event tracking is the highest-value
-engineering fix available. Over half of all purchases are missing their cart
-step, which means no reliable measurement of cart-stage friction, cart
-value, or time-in-cart. Everything downstream of "did they add to cart" is
-currently guesswork.
+| Month | Purchase sessions | Missing cart event | Rate |
+|---|---|---|---|
+| October | 629,572 | 337,699 | **53.64%** |
+| November | 773,186 | 124,839 | **16.15%** |
+
+The defect rate **more than halved** between October and November. It isn't
+purchase-specific either — cart-event logging across *all* sessions (not just
+ones that converted) roughly doubled, from 6.20% of October sessions to
+12.66% of November sessions. Something changed operationally between the two
+months: a tracking fix, an app update, a different checkout flow rolled out
+for the November promotional period — the data can't say which, but it can
+say the change is real, broad, and dated to around November 1st.
+
+**The corrected view stands, with a caveat now attached to it**: `gold.funnel`
+is still computed monotonically (a session that purchased is credited with
+reaching the cart stage even without a logged cart event), and the raw counts
+are still preserved (`sessions_cart_logged`, `purchases_missing_cart_event`).
+But because the underlying defect rate is month-dependent, **any metric built
+from cart events — including abandoned-cart value — should be read per month,
+never pooled**, until the root cause of the October/November change is
+understood. Section 3 below is a direct example of why.
+
+**What to fix at the source**: find what changed between October and
+November and ship it retroactively if possible. Whatever fixed 37 points of
+missing-cart-event rate is the highest-value engineering change available —
+worth more than any single feature built on top of the current data.
 
 ---
 
@@ -40,22 +62,26 @@ currently guesswork.
 
 | Stage | Sessions | Conversion |
 |---|---|---|
-| Viewed | 9,244,421 | — |
-| Added to cart (adjusted) | 910,796 | **9.9%** |
-| Purchased | 629,560 | **69.1%** of carts |
-| **View → purchase** | | **6.81%** |
+| Viewed | 23,016,650 | — |
+| Added to cart (adjusted) | 2,778,970 | **12.07%** |
+| Purchased | 1,402,758 | **50.48%** of carts |
+| **View → purchase** | | **6.09%** |
 
-**The story**: checkout works. Once a shopper puts something in the cart,
-69% of the time they buy it — that's a healthy rate, and it means payment
-flow, shipping options, and checkout UX are not the bottleneck.
+**The story changed from the October-only read, and it's worth saying why.**
+Cart-to-purchase dropped from 69.1% (October) to 50.5% (combined) — not
+because checkout got worse, but because November's better cart-event logging
+means far more *genuine* adds-to-cart are now visible, including ones that
+were never going to convert. October's 69.1% cart-to-purchase rate was
+inflated by the same defect described in section 0: with 54% of purchases
+missing their cart event, the sessions that *did* have a logged cart were a
+biased sample, skewed toward ones that also converted. November's more
+complete logging is the more trustworthy number.
 
-**The problem is upstream**: 90% of sessions that view a product never add
-anything to a cart. That's a product-discovery, pricing, or
-merchandising problem, not a checkout problem.
-
-**Where to spend effort**: optimizing checkout would fight over the 31% who
-abandon a cart. Optimizing the view→cart step addresses 90% of sessions.
-That's roughly a 3× larger pool.
+**The view→cart step is still the largest leak** — 88% of sessions that view
+a product never add anything to a cart — and that conclusion is unchanged
+across both readings. **Where to spend effort**: the view→cart step still
+addresses roughly 8× the population that a checkout-optimization effort would
+reach (view→cart pool vs. the ~50% of carts that don't convert).
 
 ---
 
@@ -63,40 +89,62 @@ That's roughly a 3× larger pool.
 
 | Category | Revenue | Share |
 |---|---|---|
-| `electronics.smartphone` | $157.0M | **68.3%** |
-| `computers.notebook` | $9.1M | 4.0% |
-| `electronics.video.tv` | $8.3M | 3.6% |
-| *(unlabeled)* | $23.2M | 10.1% |
+| `electronics.smartphone` | $334.9M | **66.3%** |
+| `electronics.video.tv` | $20.9M | 4.1% |
+| `computers.notebook` | $19.7M | 3.9% |
+| *(unlabeled)* | — | 10.5% |
 
-**Two-thirds of all revenue is smartphones.** This is a concentration risk:
-one supply disruption, one competitor price war, or one seasonal shift in
-handset launch cycles moves the entire business.
+**Two-thirds of all revenue is smartphones** — consistent with the
+October-only read (68.3%), so this finding held up unchanged when the second
+month was added, which is itself useful evidence: the concentration is a
+structural feature of this business, not an October artifact.
 
-**What to do**: this needs a deliberate decision, not a dashboard. Either
-(a) accept the concentration and optimize hard around smartphone margin,
-inventory, and attach-rate, or (b) fund growth in the #2–#5 categories.
-Right now the data suggests the business is a smartphone retailer that also
-sells other things.
+**What to do**: unchanged from before — this needs a deliberate decision, not
+a dashboard. Either accept the concentration and optimize hard around
+smartphone margin and attach-rate, or fund growth in the #2–#5 categories.
 
-**Attach-rate opportunity**: headphones convert at 4.65% view→purchase —
-the second-best rate of any major category, and a natural smartphone
-attach. There is likely untapped bundling revenue here.
+**Attach-rate opportunity**: headphones convert at 4.27% view→purchase,
+smartphones at 4.33% — essentially tied, and still the strongest natural
+smartphone attach category.
 
 ---
 
-## 3. There is $99.5M sitting in abandoned carts
+## 3. Abandoned cart value — read this per month, not combined
 
-281,287 sessions added something to a cart and never bought.
-**That's $99.5M — equal to 43.3% of realized revenue.**
+Combined across both months: 1,376,515 abandoned sessions, **$465.7M**,
+against $505.1M in realized revenue — a **92.2%** ratio that on its own reads
+as an almost unbelievable number. Splitting it by month explains why, and
+why the combined figure shouldn't be quoted on its own:
 
-Even with the tracking caveat above (real abandonment is likely *higher*,
-since half of cart events go unlogged), this is the single largest
-recoverable revenue pool in the dataset.
+| Month | Abandoned sessions | Abandoned value | Revenue | Ratio |
+|---|---|---|---|---|
+| October | 281,285 | $99.5M | $229.9M | 43.3% |
+| November | 1,095,230 | $366.3M | $275.2M | **133.0%** |
 
-**What to do**: abandoned-cart email/push recovery campaigns typically
-recover 5–15% of abandoned value. Applied here, that's a **$5.0M–$14.9M**
-opportunity in a single month, and it requires no change to the product or
-pricing — only to the messaging pipeline.
+November's abandoned value *exceeds* November's total revenue. Two real
+effects are stacked here, and they should not be collapsed into one number:
+
+1. **October's $99.5M was very likely an undercount.** `gold.cart_abandonment`
+   only counts sessions with a *logged* cart event — the same defect from
+   section 0 that hid 54% of October's purchase-side cart events almost
+   certainly hid a comparable share of October's abandonment-side cart
+   events too. The true October abandonment figure is unknown, but $99.5M is
+   a floor, not an estimate.
+2. **November genuinely has far more browsing-to-cart activity relative to
+   purchases.** Total sessions rose 49% month over month (9.24M → 13.77M)
+   while purchase sessions rose only 23% (629K → 773K) — consistent with a
+   Black-Friday-adjacent traffic surge that brought a wave of browsers who
+   added items to carts without the intent or urgency to buy.
+
+**What to do**: don't quote "$465.7M / 92.2% of revenue" as a single
+headline — it conflates a corrected floor with a real number and produces a
+figure that invites (deserved) skepticism. Quote November's $366.3M as the
+recovery opportunity for a Black-Friday-scale traffic month, and flag October's
+$99.5M explicitly as a lower bound pending the tracking-fix investigation in
+section 0. Standard abandoned-cart recovery campaigns recover 5–15% of
+abandoned value; applied to November alone, that's **$18.3M–$54.9M** — still
+the single largest recoverable pool in the dataset, and a more defensible
+number than the pooled one.
 
 ---
 
@@ -106,23 +154,18 @@ Categories with heavy traffic but near-zero conversion:
 
 | Category | Views | Conversion | Revenue |
 |---|---|---|---|
-| `apparel.shoes` | 612,965 | **0.69%** | $366K |
-| `apparel.shoes.keds` | 340,923 | 0.80% | $188K |
-| `furniture.living_room.sofa` | 152,164 | 0.71% | $570K |
-| `accessories.bag` | 152,009 | 0.82% | $53K |
+| `apparel.costume` | 328,900 | **0.42%** | $125K |
+| `furniture.living_room.sofa` | 434,847 | 0.61% | $1.43M |
+| `apparel.shoes.keds` | 736,199 | 0.68% | $357K |
+| `apparel.shoes` | 2,054,877 | 0.70% | $1.26M |
 
-Compare with `electronics.smartphone` at **4.79%** — roughly **7× the
-conversion rate of shoes**.
+Compare with `electronics.smartphone` at **4.33%** — roughly **6–10× the
+conversion rate** of these categories.
 
-**The story**: apparel.shoes pulls 613K views and returns $366K. It consumes
-significant merchandising real estate and traffic acquisition budget while
-generating 0.16% of revenue.
-
-**What to do**: this is either a sizing/returns-confidence problem (typical
-for footwear sold online without fit tooling), a pricing problem, or a
-catalog-depth problem. Worth a targeted investigation — but if the answer
-is "we can't win in footwear", that traffic and shelf space is better
-redirected to electronics attach categories.
+**What to do**: unchanged from the October-only read — this is either a
+sizing/returns-confidence problem, a pricing problem, or a catalog-depth
+problem, worth investigating directly rather than inferring from aggregate
+conversion alone.
 
 ---
 
@@ -130,48 +173,45 @@ redirected to electronics attach categories.
 
 | Brand | Purchases | Revenue | AOV |
 |---|---|---|---|
-| Apple | 142,858 | **$111.2M** | **$778** |
-| Samsung | 172,878 | $46.4M | $268 |
-| Xiaomi | 56,609 | $9.2M | $162 |
+| Apple | 308,922 | **$238.7M** | **$773** |
+| Samsung | 372,904 | $101.3M | $272 |
+| Xiaomi | 124,900 | $20.5M | $164 |
 
 Samsung sells **21% more units** than Apple but generates **58% less
-revenue**. Apple's AOV is 2.9× Samsung's.
+revenue** — the same ratio as the October-only read, which is a second
+confirmation (alongside section 2) that this business's category and brand
+structure is stable across months even though its funnel behavior isn't.
 
-**What to do**: Apple customers are the high-value segment — they warrant
-differentiated treatment (premium support, trade-in offers, accessory
-bundling at higher price points). Samsung is the volume/margin play. These
-should not share a merchandising strategy.
+**What to do**: unchanged — Apple customers are the high-value segment;
+Samsung is the volume play. These should not share a merchandising strategy.
 
 ---
 
-## 6. Only 11.5% of users ever buy — but repeat buyers are real
+## 6. Roughly 13% of users buy — repeat-buyer behavior is stable
 
-- 3,022,290 total users
-- 347,118 buyers (**11.5%**)
-- 131,408 repeat buyers — **38% of buyers come back within the month**
+- 5,316,649 total users
+- 697,470 buyers (**13.1%**)
+- 295,309 repeat buyers — **42.3% of buyers come back within the period**
 
-**The story**: the 11.5% purchase rate is the headline weakness, but the 38%
-repeat rate among buyers is genuinely strong. The business converts poorly
-but retains well.
+Both the buyer rate and the repeat rate improved slightly versus the
+October-only read (11.5% → 13.1% purchase rate, 38% → 42% repeat rate) —
+consistent with November's traffic surge converting at a *lower* rate overall
+(more low-intent browsers) while still adding enough real buyers to lift the
+repeat-purchase base.
 
-**What to do**: this argues for aggressive first-purchase incentives. The
-data says that if you can get someone over the line once, there's a better
-than one-in-three chance they buy again within the same month. First-purchase
-discounting has a much better payback profile here than it would at a
-business with weak retention.
+**What to do**: unchanged in direction — this still argues for aggressive
+first-purchase incentives given the strong repeat behavior once someone
+converts once.
 
 ---
 
 ## 7. Traffic peaks 06:00–11:00 UTC
 
-Revenue peaks at hour 9 UTC ($17.6M), with 06:00–11:00 UTC forming the
-clear daily band. The source store is Russian-market, so UTC+3 puts the
-real peak at **roughly 09:00–14:00 local time** — a workday-morning
-shopping pattern, not an evening one.
+Revenue peaks at hour 9 UTC ($39.7M combined), with 06:00–11:00 UTC still the
+clear daily band across both months. UTC+3 puts the real peak at roughly
+09:00–14:00 local time.
 
-**What to do**: schedule promotional sends, flash sales, and inventory
-updates to land just before 06:00 UTC. Ensure support staffing and any
-deploy freezes respect the 06:00–11:00 UTC window.
+**What to do**: unchanged from before.
 
 ---
 
@@ -179,13 +219,18 @@ deploy freezes respect the 06:00–11:00 UTC window.
 
 If only three things get done:
 
-1. **Fix cart-event tracking** — 54% of purchases have no cart event. This
-   blinds every funnel decision until fixed. Engineering, not analytics.
-2. **Launch abandoned-cart recovery** — $99.5M pool, well-understood
-   playbook, 5–15% typical recovery, no product changes needed.
-3. **Attack the view→cart step** — 90% of sessions leak here versus 31% at
-   checkout. Three times the addressable population.
+1. **Find out what changed between October and November's cart tracking** —
+   a 37-point swing in a single defect rate, in one direction, is the highest
+   information-density finding in this dataset. It should be investigated
+   before any other cart-stage metric is trusted at face value.
+2. **Launch abandoned-cart recovery, sized off November, not the pooled
+   figure** — $366.3M pool from a Black-Friday-scale month, 5–15% typical
+   recovery, no product changes needed.
+3. **Attack the view→cart step** — still the largest leak in the funnel,
+   88% of sessions never add to cart, unchanged in direction across both
+   months.
 
-Deliberately *not* in the top three: checkout optimization (already at 69%,
-limited headroom) and category expansion (strategic, slow, and needs a
-business decision rather than a data one).
+Deliberately *not* in the top three: checkout optimization (already
+converting roughly half of carts, and that number itself needs the October
+data-quality caveat before further tuning) and category expansion (strategic,
+slow, needs a business decision rather than a data one).
