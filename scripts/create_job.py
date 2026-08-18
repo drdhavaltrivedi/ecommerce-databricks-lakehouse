@@ -37,6 +37,7 @@ TASKS = [
     ("governance", "05_governance.sql",   ["silver"]),
     ("optimize",   "06_optimize.sql",     ["dq", "governance"]),
     ("opportunities", "09_opportunities.sql", ["gold"]),
+    ("deep_dive",   "10_deep_dive.sql",    ["opportunities"]),
 ]
 
 

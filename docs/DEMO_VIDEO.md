@@ -83,8 +83,8 @@ cut a word, don't shrink the type.
 
 | Shot | In | Out | Caption — set exactly this text |
 |---|---|---|---|
-| 1 | 0:00 | 0:05 | `42,448,764 real shopping events` |
-| 2 | 0:05 | 0:12 | `One month. One online store.` |
+| 1 | 0:00 | 0:05 | `109,950,743 real shopping events` |
+| 2 | 0:05 | 0:12 | `Two months. One online store.` |
 | 3 | 0:12 | 0:20 | `$99.5M left sitting in abandoned carts` |
 | 3b | 0:20 | 0:24 | `43% of everything the store earned` |
 | 4 | 0:24 | 0:30 | `Everyone assumes that's a pricing problem` |
@@ -111,7 +111,7 @@ almost always rushed.
 
 `[ ]` = pause. `**bold**` = land on this word.
 
-> Forty-two million shopping events. `[beat]` One month, one online store.
+> A hundred and ten million shopping events. `[beat]` Two months, one online store.
 >
 > `[pause]`
 >
@@ -173,11 +173,12 @@ almost always rushed.
 
 Keep only these, in order — it still works:
 
-> Forty-two million shopping events. Ninety-nine and a half million dollars left
-> in abandoned carts. `[pause]` Everybody assumes that's a pricing problem.
-> `[beat]` It **isn't**. Cart conversion is flat from fifty dollars to over a
-> thousand. Twenty times the price, same conversion. `[pause]` It's friction at
-> checkout, not cost. `[pause]` And you can just ask it, in plain English.
+> A hundred and ten million shopping events. Three hundred sixty-six million
+> dollars left in abandoned carts, in November alone. `[pause]` Everybody
+> assumes that's a pricing problem. `[beat]` It **isn't**. Cart conversion is
+> flat from fifty dollars to over a thousand. Twenty times the price, same
+> conversion. `[pause]` It's friction at checkout, not cost. `[pause]` And you
+> can just ask it, in plain English.
 
 ---
 
@@ -217,7 +218,7 @@ nobody is mid-conversation.
 switch to it and keep talking. Do not narrate a loading spinner and do not
 apologise for it — most visitors will not register that anything went wrong.
 
-> "Here — this is it running on the full 42 million rows."
+> "Here — this is it running on the full 110 million rows."
 
 Then carry on with the same script from [`BOOTH_DEMO.md`](BOOTH_DEMO.md). The
 video covers the same beats in the same order, so your words still line up.

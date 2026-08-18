@@ -11,7 +11,7 @@
 > Turned that file into a clean, governed Databricks lakehouse with a dashboard
 > and plain-English search, then found the real problems: cart abandonment is not
 > about price (it's checkout friction), almost no one is sold an accessory with
-> their phone (~$2.6M/month missed), and $41.6M sits with customers who are ready
+> their phone (~$2.9M/month missed), and $166M sits with customers who are ready
 > to buy but were never asked.
 
 ---
@@ -43,6 +43,7 @@ should not need to ask.
 11. [How to run it](#11-how-to-run-it)
 12. [Design decisions and trade-offs](#12-design-decisions-and-trade-offs)
 13. [Extending this](#13-extending-this)
+14. [Deep dive: three follow-up investigations](docs/DEEP_DIVE.md) (separate doc)
 
 ---
 
@@ -123,6 +124,7 @@ flowchart TD
     S3["silver.dim_session"]
     G["gold.* descriptive<br/>9 tables"]
     O["gold.* diagnostic<br/>5 tables"]
+    DD["gold.* deep-dive<br/>4 tables"]
     D["Lakeview Dashboard"]
     Q["gold.data_quality"]
 
@@ -136,11 +138,14 @@ flowchart TD
     S3 --> G
     S1 --> O
     S3 --> O
+    S1 --> DD
+    S3 --> DD
     B -.->|"profiling"| Q
     S3 -.-> Q
     Q --> D
     G --> D
     O --> D
+    DD --> D
 ```
 
 ### Why medallion (bronze / silver / gold)?
@@ -293,6 +298,7 @@ flowchart TD
     subgraph GLD["GOLD — consumption (pre-aggregated, named for the question)"]
         GD["<b>Descriptive</b> · 9 tables<br/>daily_metrics · funnel<br/>cart_abandonment · category_performance<br/>brand_performance · top_products<br/>user_summary · hourly_pattern · data_quality"]
         GO["<b>Diagnostic</b> · 5 tables<br/>intent_by_view_depth<br/>cart_conversion_by_price<br/>attach_opportunity<br/>price_change_effect<br/>category_recovery_check"]
+        GDD["<b>Deep-dive</b> · 4 tables<br/>discount_tier_analysis<br/>november_cohort_behavior<br/>rfm_segmentation<br/>buyer_retention_oct_to_nov"]
     end
 
     CSV -->|"COPY INTO<br/>idempotent, per-file ledger"| BE
@@ -813,6 +819,9 @@ sql/
                        pipeline runs, table usage, PII inventory
   09_opportunities.sql Findings that identify a specific fixable problem,
                        size it, and point at a decision
+  10_deep_dive.sql     Three follow-up investigations that resolve open
+                       questions from 09_opportunities.sql -- discount
+                       reversal, November traffic composition, RFM/cohort
 
 scripts/
   split_upload.py      Streams a CSV out of the Kaggle zip into <5GiB parts and
@@ -821,7 +830,13 @@ scripts/
   run_sql_file.py      Runs a .sql file statement by statement. The splitter is
                        quote-aware: a naive split on ';' breaks on semicolons
                        inside string literals, which this codebase has.
-  run_pipeline.py      Orchestrates all five SQL layers in order. Idempotent.
+  run_pipeline.py      Orchestrates all SQL layers in order, then runs a
+                       metrics drift check. Idempotent.
+  metrics_snapshot.py  Snapshots headline metrics per run into
+                       ops.metrics_history and flags drift past a threshold
+                       -- built after a real finding changed 20+ points
+                       between the October and October+November loads with
+                       nothing to catch it
   create_dashboard.py  Creates or updates the Lakeview dashboard
   create_genie_space.py  Creates or updates the AI/BI Genie space, including
                        the instructions that stop it reporting the broken
@@ -830,11 +845,22 @@ scripts/
                        Workflow (created PAUSED)
   create_alerts.py     Creates SQL alerts on data quality and freshness
                        (no schedule or recipients by default)
+  create_booth_dashboard.py  Sparse 4-tile dashboard for a trade-show booth,
+                       separate from the full analysis dashboard
+
+metrics_config.json    Ten headline metrics tracked by metrics_snapshot.py
 
 docs/
   INSIGHTS.md          Business findings, reasoning, and recommendations
   OPPORTUNITIES.md     Five specific problems, sized, with what to do about
                        each -- and one thing NOT to attempt
+  DEEP_DIVE.md         Three follow-up investigations resolving open
+                       questions OPPORTUNITIES.md left unanswered
+  BOOTH_DEMO.md        Trade-show runbook: 90-second script, setup checklist,
+                       failure playbook
+  DEMO_VIDEO.md        Shot list and word-for-word script for a booth demo
+                       video
+  booth_onepager.html  Self-contained takeaway page (QR handout)
 ```
 
 ---

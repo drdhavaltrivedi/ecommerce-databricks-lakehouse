@@ -160,6 +160,12 @@ means something different each time.
   *reactive* ones (triggered by low sales velocity) as a modeling variable
   before drawing any conclusion from historical price-change data.
 
+**Follow-up done**: [`docs/DEEP_DIVE.md` §1](DEEP_DIVE.md#1-does-sale-day-coordination-explain-the-discount-reversal)
+tests exactly this using same-day-cut-count as a proxy, and finds it partially
+explains the reversal -- Black Friday/Cyber Monday convert best, but the
+residual points at traffic composition (§2 of the same doc) rather than
+discounting mechanics alone.
+
 ---
 
 ## 5. The missing categories still cannot be recovered — don't try
