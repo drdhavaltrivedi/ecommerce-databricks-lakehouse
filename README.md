@@ -1,5 +1,21 @@
 # E-commerce Behavior Analytics on Databricks
 
+> ### In short
+>
+> **The problem**
+> An online store had 42 million rows of raw click logs sitting in a file — nobody
+> could query it, and nobody knew why half of all shopping carts were being
+> abandoned or where the money was leaking.
+>
+> **What we did**
+> Turned that file into a clean, governed Databricks lakehouse with a dashboard
+> and plain-English search, then found the real problems: cart abandonment is not
+> about price (it's checkout friction), almost no one is sold an accessory with
+> their phone (~$2.6M/month missed), and $41.6M sits with customers who are ready
+> to buy but were never asked.
+
+---
+
 A complete lakehouse implementation over the Kaggle
 [eCommerce behavior data from a multi category store](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store)
 dataset: 42M raw clickstream events → Unity Catalog governed medallion data
