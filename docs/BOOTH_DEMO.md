@@ -129,6 +129,7 @@ Then, in the browser, before the doors open:
       (proves it works, and warms the cache)
 - [ ] GitHub repo in tab 3
 - [ ] Fallback screen-recording saved **locally**, not in cloud storage
+      (shot list: [`DEMO_VIDEO.md`](DEMO_VIDEO.md))
 - [ ] Laptop sleep/screensaver **disabled**
 - [ ] Browser zoom at ~125% — booth screens are viewed from further away than desks
 
@@ -148,7 +149,7 @@ to keep paying after the stand closes.
 | What happens | Do this |
 |---|---|
 | Dashboard spinning >10s | Keep talking, switch to the recording. Never narrate a loading screen. |
-| Expo wifi drops | Recording. It's why you made it. |
+| Expo wifi drops | Switch to the recording ([`DEMO_VIDEO.md`](DEMO_VIDEO.md)) and keep talking. It covers the same beats in the same order, so your script still lines up. |
 | Genie gives an odd answer | *"Good — that's why the caveats are built in, not bolted on."* Then re-ask more specifically. |
 | Someone asks something the data can't answer | *"This dataset can't tell you that — there's no payment or refund status in it."* Say so. Guessing in front of a technical audience is fatal. |
 | Token expires | Have a spare PAT written down offline. |

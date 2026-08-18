@@ -17,22 +17,14 @@
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
     --sans:  "Helvetica Neue", Helvetica, Arial, "Segoe UI", system-ui, sans-serif;
     --mono:  ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+    color-scheme: light;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --ground:    #0B1210;
-      --surface:   #121B18;
-      --ink:       #E9EEEC;
-      --ink-soft:  #9AA8A3;
-      --ink-faint: #6E7C77;
-      --rule:      #24322E;
-      --rule-soft: #1B2724;
-      --accent:    #58C4AC;
-      --loss:      #E8788C;
-      --loss-bg:   rgba(232, 120, 140, 0.10);
-      --accent-bg: rgba(88, 196, 172, 0.10);
-    }
-  }
+  :root[data-theme="dark"] { color-scheme: dark; }
+  /* Light is the deliberate default here, not the OS default: this page is
+     handed out at a trade stand and must look the same on every phone that
+     scans it. Dark is opt-in via the toggle, which is why there is no
+     prefers-color-scheme block. */
   :root[data-theme="dark"] {
     --ground:    #0B1210;
     --surface:   #121B18;
@@ -70,13 +62,57 @@
   }
 
   /* ---- masthead ---- */
+  .masthead-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
   .eyebrow {
     font-family: var(--mono);
     font-size: 0.7rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ink-faint);
-    margin: 0 0 1.25rem;
+    margin: 0;
+  }
+
+  .theme-toggle {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 0.4rem 0.7rem;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  .theme-toggle:hover { border-color: var(--ink-soft); color: var(--ink); }
+  .theme-toggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  /* a filled/hollow disc rather than an emoji, so it inherits the page's
+     ink colour and stays consistent with the typographic treatment */
+  .theme-toggle::before {
+    content: "";
+    width: 0.62rem;
+    height: 0.62rem;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    background: currentColor;
+  }
+  :root[data-theme="dark"] .theme-toggle::before { background: transparent; }
+  @media (prefers-reduced-motion: reduce) {
+    .theme-toggle { transition: none; }
   }
   h1 {
     font-family: var(--serif);
@@ -297,7 +333,12 @@
 <div class="sheet">
 
   <header>
-    <p class="eyebrow">Seamless Middle East 2026</p>
+    <div class="masthead-top">
+      <p class="eyebrow">Seamless Middle East 2026</p>
+      <button type="button" class="theme-toggle" id="themeToggle" aria-pressed="false">
+        <span id="themeLabel">Dark</span>
+      </button>
+    </div>
     <h1>Where the money leaks</h1>
     <p class="standfirst">
       We took 42 million real shopping events from an online store and looked for
@@ -482,3 +523,36 @@
   </footer>
 
 </div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById("themeToggle");
+    var label = document.getElementById("themeLabel");
+
+    // Light is the default. Only an explicit prior choice moves us off it.
+    var stored = null;
+    try { stored = localStorage.getItem("theme"); } catch (e) { /* private mode */ }
+
+    function apply(theme) {
+      if (theme === "dark") {
+        root.setAttribute("data-theme", "dark");
+      } else {
+        root.removeAttribute("data-theme");
+      }
+      var isDark = theme === "dark";
+      // the button names the theme it switches TO, not the current one
+      label.textContent = isDark ? "Light" : "Dark";
+      btn.setAttribute("aria-pressed", String(isDark));
+      btn.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
+    }
+
+    apply(stored === "dark" ? "dark" : "light");
+
+    btn.addEventListener("click", function () {
+      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      apply(next);
+      try { localStorage.setItem("theme", next); } catch (e) { /* ignore */ }
+    });
+  })();
+</script>
