@@ -3,7 +3,8 @@
 A complete lakehouse implementation over the Kaggle
 [eCommerce behavior data from a multi category store](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store)
 dataset: 42M raw clickstream events → Unity Catalog governed medallion data
-model → Lakeview dashboard → a documented set of business findings.
+model → Lakeview dashboard + AI/BI Genie → a documented set of business findings
+and five sized, actionable problems.
 
 This README is the single source of truth for **what was built, why each
 decision was made, and how to run or extend it**. Anyone picking this up
@@ -19,12 +20,13 @@ should not need to ask.
 4. [Ingestion: the hard part, and how it was solved](#4-ingestion-the-hard-part-and-how-it-was-solved)
 5. [The data model, layer by layer](#5-the-data-model-layer-by-layer)
 6. [Data quality: the issues found and how they were handled](#6-data-quality-the-issues-found-and-how-they-were-handled)
-7. [The dashboard](#7-the-dashboard)
-8. [Business findings](#8-business-findings) — incl. [problems worth acting on](#problems-worth-acting-on)
-9. [Repo layout](#9-repo-layout)
-10. [How to run it](#10-how-to-run-it)
-11. [Design decisions and trade-offs](#11-design-decisions-and-trade-offs)
-12. [Extending this](#12-extending-this)
+7. [The dashboard and Genie](#7-the-dashboard)
+8. [Production hardening](#8-production-hardening) — performance, security, scheduling, monitoring
+9. [Business findings](#9-business-findings) — **[problems worth acting on](#problems-worth-acting-on)**
+10. [Repo layout](#10-repo-layout)
+11. [How to run it](#11-how-to-run-it)
+12. [Design decisions and trade-offs](#12-design-decisions-and-trade-offs)
+13. [Extending this](#13-extending-this)
 
 ---
 
@@ -46,6 +48,10 @@ that answers the questions a retail business actually asks:
 | When are we busiest (staffing, promo timing, deploy windows)? | `gold.hourly_pattern` |
 | Do buyers come back? | `gold.user_summary` |
 | **Can I trust any of the above?** | `gold.data_quality` |
+| *Why* is half the cart abandoned — price or friction? | `gold.cart_conversion_by_price` |
+| Who is most likely to buy but hasn't yet? | `gold.intent_by_view_depth` |
+| Are we selling accessories with the phones? | `gold.attach_opportunity` |
+| Do our discounts actually work? | `gold.price_change_effect` |
 
 That last row is deliberate and is covered in
 [section 6](#6-data-quality-the-issues-found-and-how-they-were-handled). A model
@@ -73,7 +79,7 @@ Real behavioral data from a large multi-category online store, October–Novembe
 
 **Scale**: 5.7GB / ~42M rows for October alone; 9GB for November.
 **Currently loaded**: all of October 2019 — 42,448,764 rows, Oct 1 00:00:00 to
-Oct 31 23:59:59 UTC (see [section 12](#12-extending-this) for adding November).
+Oct 31 23:59:59 UTC (see [section 13](#13-extending-this) for adding November).
 
 The dataset documents `remove_from_cart` as a possible `event_type`, but it does
 **not appear** in the October file — only three event types are present. The
@@ -93,7 +99,8 @@ flowchart TD
     S1["silver.fact_events"]
     S2["silver.dim_product"]
     S3["silver.dim_session"]
-    G["gold.* - 14 tables"]
+    G["gold.* descriptive<br/>9 tables"]
+    O["gold.* diagnostic<br/>5 tables"]
     D["Lakeview Dashboard"]
     Q["gold.data_quality"]
 
@@ -105,10 +112,13 @@ flowchart TD
     S1 -->|"session aggregation"| S3
     S1 --> G
     S3 --> G
+    S1 --> O
+    S3 --> O
     B -.->|"profiling"| Q
     S3 -.-> Q
     Q --> D
     G --> D
+    O --> D
 ```
 
 ### Why medallion (bronze / silver / gold)?
@@ -330,7 +340,10 @@ events measures *engagement*; counting sessions measures *shoppers making
 progress*. Every funnel, conversion, and abandonment metric downstream is
 session-based for this reason.
 
-### Gold — nine business-facing tables
+### Gold — 14 business-facing tables
+
+**Descriptive** — what happened ([`sql/03_gold.sql`](sql/03_gold.sql),
+[`04_data_quality.sql`](sql/04_data_quality.sql)):
 
 | Table | Grain | Business question |
 |---|---|---|
@@ -344,8 +357,23 @@ session-based for this reason.
 | `hourly_pattern` | one row per hour-of-day | When are we busiest? |
 | `data_quality` | one row per check | **Can these numbers be trusted?** |
 
-Gold tables are materialized rather than views. The dashboard has ~14 widgets;
-as views, each widget refresh would re-scan the 30M-row fact table. Materialized,
+**Diagnostic** — what is broken and what it's worth
+([`sql/09_opportunities.sql`](sql/09_opportunities.sql)):
+
+| Table | Grain | Problem it identifies |
+|---|---|---|
+| `intent_by_view_depth` | one row per view band | High-intent non-buyers: $41.6M of unconverted intent |
+| `cart_conversion_by_price` | one row per price band | Abandonment is flat above $50 — friction, not price |
+| `attach_opportunity` | one row per attached category | Attach rate is 2.1% against a 15–30% norm |
+| `price_change_effect` | one row per price move | Discounting shows no visible conversion lift |
+| `category_recovery_check` | one row | **Negative result**: missing categories are unrecoverable |
+
+The split matters. The descriptive tables answer *"how are we doing"* and belong
+on a weekly review. The diagnostic tables answer *"what should we fix"* and each
+one maps to a decision — see [`docs/OPPORTUNITIES.md`](docs/OPPORTUNITIES.md).
+
+Gold tables are materialized rather than views. The dashboard has ~18 widgets;
+as views, each widget refresh would re-scan the 42M-row fact table. Materialized,
 the dashboard queries touch tables of a few hundred rows. Cost of the trade:
 gold is stale until the pipeline re-runs — acceptable for a daily-refresh
 analytics use case, and `CREATE OR REPLACE` makes the refresh a single re-run.
@@ -513,7 +541,7 @@ handled in the script: `data_sources.tables` **must be sorted** by identifier,
 paragraphs go in its `content` array), and `content` entries must be plain
 strings.
 
-## 7b. Production hardening
+## 8. Production hardening
 
 The model and dashboard answer the business question. These pieces are what
 make it survivable in production rather than a one-off analysis.
@@ -602,7 +630,7 @@ materializing a copy would mean paying to duplicate free data.
 For reference, building this entire project cost **~1.2 DBUs** of serverless SQL
 compute.
 
-## 8. Business findings
+## 9. Business findings
 
 ### Problems worth acting on
 
@@ -681,7 +709,7 @@ before it; deploy freezes and support staffing should respect it.
 
 ---
 
-## 9. Repo layout
+## 10. Repo layout
 
 ```
 sql/
@@ -722,7 +750,7 @@ docs/
 
 ---
 
-## 10. How to run it
+## 11. How to run it
 
 ### Prerequisites
 
@@ -763,7 +791,8 @@ python3 scripts/run_pipeline.py
 ```
 
 Or a single layer: `python3 scripts/run_pipeline.py silver`.
-Layer names: `bronze`, `silver`, `gold`, `dq`, `governance`.
+Layer names: `bronze`, `silver`, `gold`, `dq`, `governance`, `optimize`,
+`security`, `observability`, `opportunities`.
 
 ### Refresh the dashboard and Genie space
 
@@ -780,7 +809,7 @@ skips files it has already loaded, and silver/gold are `CREATE OR REPLACE`.
 
 ---
 
-## 11. Design decisions and trade-offs
+## 12. Design decisions and trade-offs
 
 Recorded with reasoning so they can be revisited deliberately rather than
 rediscovered by accident.
@@ -799,10 +828,15 @@ rediscovered by accident.
 | `COPY INTO`, not `CREATE TABLE USING CSV` | Per-file ledger makes re-runs incremental and safe | Slightly more verbose DDL |
 | DQ as a table, not documentation | Recomputes every run; a README caveat goes stale immediately | One more table to maintain |
 | Dashboard as code | Reviewable, reproducible, diffable | Slower to iterate than clicking in the UI |
+| Liquid clustering, not date partitioning | 42M rows/month makes date partitions small enough to cause small-file problems; partitioning is a one-way door | Slightly less predictable than explicit partitions |
+| Column mask defined but **not applied** | Masking a column against a group that doesn't exist yet would break every query | Requires a deliberate activation step |
+| Job created **paused**, alerts with no recipients | A script should not start spending warehouse budget or sending mail on someone's behalf | Someone must enable them; easy to forget |
+| Caveats stored **in** Genie instructions, not just docs | A business user asking "should we discount more?" gets the confound explained, not a misleading yes | Instructions must be maintained alongside the tables |
+| Negative results kept as a table | Stops the next engineer re-attempting an impossible backfill every six months | A table that will always return the same row |
 
 ---
 
-## 12. Extending this
+## 13. Extending this
 
 ### Add November 2019 (recommended next step)
 
