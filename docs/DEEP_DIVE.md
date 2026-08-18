@@ -94,11 +94,9 @@ and *when* they're cutting prices, not about people browsing more per visit.
 
 `gold.rfm_segmentation`, `gold.buyer_retention_oct_to_nov`
 
-The Indian e-commerce project has RFM scoring and cohort retention; this
-project didn't, until now. One structural difference matters: the Indian
-project's RFM was built to **validate an existing segment label** (and found
-it didn't predict recency). This project has no such label — RFM here is a
-**fresh segmentation**, not a check on a given one.
+This project has no pre-existing customer segment label — RFM here is a
+**fresh segmentation**, built directly from raw behavior rather than checked
+against a given label.
 
 | Recency quartile | Buyers | Avg. days since last event | Avg. sessions | Avg. spend |
 |---|---|---|---|---|
@@ -108,17 +106,14 @@ it didn't predict recency). This project has no such label — RFM here is a
 | 4 (most recent) | 174,367 | 2.2 | 18.1 | **$958** |
 
 **Clean and monotonic** — recency, frequency, and spend all move together.
-That's itself informative by contrast: in the Indian project, a customer's
-*stated* segment failed to predict recency even though it predicted spend
-well. Here, with no label in the way, recency alone turns out to be a
-reasonable single proxy for value. The most-recently-active quartile spends
+That's itself informative: with no pre-existing label to complicate the
+picture, recency alone turns out to be a reasonable single proxy for value. The most-recently-active quartile spends
 61% more on average than the least-recent, and attends 3.7× as many sessions.
 
 **Buyer retention, October → November**: of 347,118 October buyers,
 **91,286 (26.3%)** purchased again in November. With only two months loaded
-this is one data point rather than a curve — the same limitation the Indian
-project didn't have with its three years of history. Worth revisiting once a
-third month is added, the same way `gold.cohort_retention` works there.
+this is one data point rather than a curve — worth revisiting once a third
+month is added and this can be extended into a proper cohort-retention table.
 
 ---
 

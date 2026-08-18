@@ -100,18 +100,15 @@ WHERE f.event_date >= '2019-11-01'
 GROUP BY 1;
 
 -- ---------------------------------------------------------------------------
--- 3. RFM SCORING FOR THE CLICKSTREAM PROJECT (never built before -- only the
--- Indian e-commerce project had this).
+-- 3. RFM SCORING.
 --
--- Unlike the Indian project, there is no pre-existing segment label here to
--- validate RFM against -- this is a fresh segmentation, not a check on a
--- given one. Result is clean and monotonic: recency, frequency, and monetary
--- value all move together (no anomaly like the Indian dataset's flat-recency
--- finding), which is itself informative -- it means recency alone is a
--- reasonable single proxy for value in this business, unlike the Indian
--- dataset where a customer's stated segment failed to predict recency.
+-- There is no pre-existing segment label in this dataset to validate RFM
+-- against -- this is a fresh segmentation, not a check on a given one. Result
+-- is clean and monotonic: recency, frequency, and monetary value all move
+-- together with no anomaly, which is itself informative -- it means recency
+-- alone is a reasonable single proxy for value in this business.
 CREATE OR REPLACE TABLE ecommerce.gold.rfm_segmentation
-COMMENT 'RFM quartile scoring for buyers (recency = days since last event, frequency = distinct sessions, monetary = total purchase value). Clean monotonic relationship across all three dimensions -- no pre-existing segment label to compare against, unlike the Indian e-commerce project.'
+COMMENT 'RFM quartile scoring for buyers (recency = days since last event, frequency = distinct sessions, monetary = total purchase value). Clean monotonic relationship across all three dimensions -- no pre-existing segment label to compare against.'
 AS
 WITH rfm_base AS (
   SELECT user_id,
@@ -144,7 +141,7 @@ ORDER BY recency_score;
 -- again in November.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE TABLE ecommerce.gold.buyer_retention_oct_to_nov
-COMMENT 'October buyers who purchased again in November. One data point (26.3%) -- more months of data would turn this into a real retention curve the way the Indian e-commerce project has.'
+COMMENT 'October buyers who purchased again in November. One data point (26.3%) -- more months of data would turn this into a real retention curve.'
 AS
 WITH oct_buyers AS (
   SELECT DISTINCT user_id FROM ecommerce.silver.fact_events
