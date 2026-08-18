@@ -36,6 +36,7 @@ TASKS = [
     ("dq",         "04_data_quality.sql", ["gold"]),
     ("governance", "05_governance.sql",   ["silver"]),
     ("optimize",   "06_optimize.sql",     ["dq", "governance"]),
+    ("opportunities", "09_opportunities.sql", ["gold"]),
 ]
 
 

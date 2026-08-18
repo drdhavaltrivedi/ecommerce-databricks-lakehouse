@@ -41,6 +41,10 @@ TABLES = [
     "ecommerce.gold.user_summary",
     "ecommerce.gold.hourly_pattern",
     "ecommerce.gold.data_quality",
+    "ecommerce.gold.intent_by_view_depth",
+    "ecommerce.gold.cart_conversion_by_price",
+    "ecommerce.gold.attach_opportunity",
+    "ecommerce.gold.price_change_effect",
 ]
 
 INSTRUCTIONS = [
@@ -86,6 +90,28 @@ INSTRUCTIONS = [
     "opportunity, not checkout. Timestamps are UTC and the store serves a "
     "UTC+3 market, so peak trading at 06:00-11:00 UTC is roughly 09:00-14:00 "
     "local time -- mention local time when discussing time of day.",
+
+    # --- the opportunity tables, and how to talk about them honestly ---
+    "OPPORTUNITY TABLES. Four tables identify specific fixable problems, and "
+    "each carries a caveat you must repeat when you cite it. "
+    "gold.cart_conversion_by_price shows cart-to-purchase is FLAT at about 50% "
+    "from $50 to over $1000, so abandonment is NOT driven by price above $50 -- "
+    "it is process friction. Below $50 conversion falls to 30%, consistent with "
+    "shipping cost as a share of order value. "
+    "gold.attach_opportunity shows only 2.12% of smartphone buyers buy anything "
+    "else in the same session, against a 15-30% industry norm; note this "
+    "measures SAME-SESSION attach only, so it is a floor. "
+    "gold.intent_by_view_depth shows users who viewed a product 10+ times "
+    "convert at 43.5% versus 0% for a single view, and about $41.6M of value "
+    "sits with high-view non-buyers -- an excellent retargeting segment. But "
+    "NEVER claim more impressions CAUSE sales: buyers accumulate views on the "
+    "way to buying, so this is correlation and is valid for targeting, not for "
+    "justifying ad spend. "
+    "gold.price_change_effect shows product-days after a >5% price cut convert "
+    "at 1.62% versus 1.85% when stable. Always state the confound: prices get "
+    "cut BECAUSE items are not selling, so this is not evidence that discounts "
+    "suppress demand -- only that discounting is not visibly rescuing those "
+    "products. A holdout test is needed for a causal answer.",
 
     # --- worked examples ---
     "USEFUL QUERIES. Funnel: SELECT sessions_with_view, sessions_with_cart, "

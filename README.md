@@ -20,7 +20,7 @@ should not need to ask.
 5. [The data model, layer by layer](#5-the-data-model-layer-by-layer)
 6. [Data quality: the issues found and how they were handled](#6-data-quality-the-issues-found-and-how-they-were-handled)
 7. [The dashboard](#7-the-dashboard)
-8. [Business findings](#8-business-findings)
+8. [Business findings](#8-business-findings) — incl. [problems worth acting on](#problems-worth-acting-on)
 9. [Repo layout](#9-repo-layout)
 10. [How to run it](#10-how-to-run-it)
 11. [Design decisions and trade-offs](#11-design-decisions-and-trade-offs)
@@ -93,7 +93,7 @@ flowchart TD
     S1["silver.fact_events"]
     S2["silver.dim_product"]
     S3["silver.dim_session"]
-    G["gold.* - 9 tables"]
+    G["gold.* - 14 tables"]
     D["Lakeview Dashboard"]
     Q["gold.data_quality"]
 
@@ -604,6 +604,48 @@ compute.
 
 ## 8. Business findings
 
+### Problems worth acting on
+
+[`docs/OPPORTUNITIES.md`](docs/OPPORTUNITIES.md) goes past description to five
+findings where the data names a **specific broken thing**, sizes it, and points
+at a decision. Backed by `gold.*` tables that rebuild every run, so none of it
+goes stale.
+
+**Cart abandonment is not a price problem.** Cart-to-purchase is flat at ~50%
+from $50 to over $1,000 — a 20× price range with no decay. If cost were the
+barrier, conversion would fall as price climbs; it doesn't. Whatever stops half
+of all carts is price-independent, i.e. process friction. *Below* $50 conversion
+drops to 30%, which is the signature of shipping cost as a share of order value.
+Everyone will assume abandonment is a discounting problem. The data says it
+isn't.
+
+**The attach-rate engine is off.** Only **2.12%** of the 285,252 smartphone
+purchase sessions bought anything else — against a 15–30% norm for electronics.
+Accessories are where phone retail makes its margin. Moving attach to a
+conservative 10% is roughly **$2.6M/month** on headphones alone, from customers
+who have already bought.
+
+**Repeat viewing predicts purchase almost perfectly.** 10+ views of a product
+converts at **43.5%**; a single view converts at ~0%. The usable part is the
+non-buyers in that band: ~142,000 user-product pairs worth **$41.6M** of
+unconverted intent, sitting unused. Extracting the segment is a query, not a
+project.
+
+**Discounting isn't visibly working.** Days after a >5% price cut convert at
+1.62% vs 1.85% when stable — but this is confounded (prices get cut *because*
+items aren't selling), so it warrants a holdout test, not a policy change.
+
+**The missing categories cannot be recovered.** Of 372 `category_id` values
+appearing with a blank code, **zero** ever appear with a populated one — the
+sets are disjoint, so the obvious backfill is impossible. Recorded as a table
+specifically to stop the next engineer spending a day rediscovering that.
+
+Both the dashboard and Genie carry these tables *with their caveats attached*,
+so a business user asking "should we discount more?" gets the confound explained
+rather than a misleading yes.
+
+### Descriptive findings
+
 Full write-up with reasoning and recommendations:
 **[`docs/INSIGHTS.md`](docs/INSIGHTS.md)**. Headlines from Oct 1–22 2019
 (42.4M events, 9.2M sessions, 3.02M users, $229.9M revenue):
@@ -652,6 +694,8 @@ sql/
   07_security.sql      PII tags, table tags, column-mask function (inactive)
   08_observability.sql ops.* views over system tables: cost, query perf,
                        pipeline runs, table usage, PII inventory
+  09_opportunities.sql Findings that identify a specific fixable problem,
+                       size it, and point at a decision
 
 scripts/
   split_upload.py      Streams a CSV out of the Kaggle zip into <5GiB parts and
@@ -672,6 +716,8 @@ scripts/
 
 docs/
   INSIGHTS.md          Business findings, reasoning, and recommendations
+  OPPORTUNITIES.md     Five specific problems, sized, with what to do about
+                       each -- and one thing NOT to attempt
 ```
 
 ---

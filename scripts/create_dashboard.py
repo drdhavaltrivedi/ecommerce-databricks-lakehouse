@@ -115,6 +115,9 @@ datasets = [
         ORDER BY stage
     """),
     dataset("data_quality", "SELECT check_name, description, affected_rows, pct_affected, business_impact FROM ecommerce.gold.data_quality ORDER BY pct_affected DESC"),
+    dataset("intent", "SELECT view_band, conversion_pct, unconverted_value, unconverted_pairs FROM ecommerce.gold.intent_by_view_depth ORDER BY band_order"),
+    dataset("price_bands", "SELECT price_band, cart_conversion_pct, carted_items, abandoned_value FROM ecommerce.gold.cart_conversion_by_price ORDER BY price_band"),
+    dataset("attach", "SELECT attached_category, sessions, pct_of_phone_buyers, revenue FROM ecommerce.gold.attach_opportunity ORDER BY sessions DESC LIMIT 8"),
     dataset("repeat_buyers", """
         SELECT
           CASE WHEN purchase_count = 0 THEN '0 - browsed only'
@@ -168,9 +171,20 @@ layout = [
                      ["product_id", "category_code", "brand", "views", "purchases", "revenue"],
                      "Top Products by Revenue"), 0, 34, 6, 8),
 
+    # --- opportunity analysis: the actionable findings ---
+    pos(chart_widget("intent_conv", "intent", "view_band", "conversion_pct",
+                     "Conversion by Repeat Views (1 view = 0%, 10+ views = 43%)"), 0, 42, 3, 6),
+    pos(chart_widget("intent_value", "intent", "view_band", "unconverted_value",
+                     "Unconverted Value by Intent Band (retargeting pool)"), 3, 42, 3, 6),
+
+    pos(chart_widget("price_conv", "price_bands", "price_band", "cart_conversion_pct",
+                     "Cart Conversion by Price - flat above $50, so not a price problem"), 0, 48, 3, 6),
+    pos(chart_widget("attach_chart", "attach", "attached_category", "sessions",
+                     "What Phone Buyers Also Buy (attach rate only 2.1%)"), 3, 48, 3, 6),
+
     pos(table_widget("dq_table", "data_quality",
                      ["check_name", "affected_rows", "pct_affected", "business_impact"],
-                     "Data Quality - read before trusting the numbers above"), 0, 42, 6, 7),
+                     "Data Quality - read before trusting the numbers above"), 0, 54, 6, 7),
 ]
 
 serialized = {
