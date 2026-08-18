@@ -900,6 +900,7 @@ rediscovered by accident.
 | Split upload into ~1GB parts | Only path that satisfies both the 5 GiB API limit and 13GB free disk | Slower than one large upload would be; more moving parts |
 | `COPY INTO`, not `CREATE TABLE USING CSV` | Per-file ledger makes re-runs incremental and safe | Slightly more verbose DDL |
 | DQ as a table, not documentation | Recomputes every run; a README caveat goes stale immediately | One more table to maintain |
+| Metrics drift check as the pipeline's last step | Built after cart-to-purchase moved -27% and the tracking-gap moved -38% between the Oct and Oct+Nov loads with nothing to flag it | One more Delta table (`ops.metrics_history`) and one more step per run |
 | Dashboard as code | Reviewable, reproducible, diffable | Slower to iterate than clicking in the UI |
 | Liquid clustering, not date partitioning | 42M rows/month makes date partitions small enough to cause small-file problems; partitioning is a one-way door | Slightly less predictable than explicit partitions |
 | Column mask defined but **not applied** | Masking a column against a group that doesn't exist yet would break every query | Requires a deliberate activation step |

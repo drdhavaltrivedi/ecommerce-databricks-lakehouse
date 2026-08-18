@@ -1,0 +1,15 @@
+{
+  "catalog": "ecommerce",
+  "metrics": {
+    "bronze_row_count": "SELECT COUNT(*) FROM ecommerce.bronze.events",
+    "view_to_cart_pct": "SELECT view_to_cart_pct FROM ecommerce.gold.funnel",
+    "cart_to_purchase_pct": "SELECT cart_to_purchase_pct FROM ecommerce.gold.funnel",
+    "view_to_purchase_pct": "SELECT view_to_purchase_pct FROM ecommerce.gold.funnel",
+    "dq_purchase_without_cart_pct": "SELECT pct_affected FROM ecommerce.gold.data_quality WHERE check_name = 'purchase_without_cart'",
+    "dq_missing_category_pct": "SELECT pct_affected FROM ecommerce.gold.data_quality WHERE check_name = 'missing_category_code'",
+    "dq_missing_brand_pct": "SELECT pct_affected FROM ecommerce.gold.data_quality WHERE check_name = 'missing_brand'",
+    "total_revenue": "SELECT ROUND(SUM(revenue),0) FROM ecommerce.gold.daily_metrics",
+    "total_sessions": "SELECT SUM(sessions) FROM ecommerce.gold.daily_metrics",
+    "abandoned_cart_value": "SELECT ROUND(SUM(abandoned_cart_value),0) FROM ecommerce.gold.cart_abandonment"
+  }
+}
