@@ -25,6 +25,7 @@ LAYERS = [
     ("security",      "07_security.sql"),
     ("observability", "08_observability.sql"),
     ("opportunities", "09_opportunities.sql"),
+    ("deep_dive", "10_deep_dive.sql"),
 ]
 
 REQUIRED_ENV = ["DATABRICKS_HOST", "DATABRICKS_TOKEN", "DBX_WAREHOUSE_ID"]
