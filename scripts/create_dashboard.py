@@ -115,7 +115,7 @@ datasets = [
         ORDER BY stage
     """),
     dataset("data_quality", "SELECT check_name, description, affected_rows, pct_affected, business_impact FROM ecommerce.gold.data_quality ORDER BY pct_affected DESC"),
-    dataset("intent", "SELECT view_band, conversion_pct, unconverted_value, unconverted_pairs FROM ecommerce.gold.intent_by_view_depth ORDER BY band_order"),
+    dataset("intent", "SELECT CONCAT(band_order, '. ', view_band) AS view_band, conversion_pct, unconverted_value, unconverted_pairs FROM ecommerce.gold.intent_by_view_depth ORDER BY band_order"),
     dataset("price_bands", "SELECT price_band, cart_conversion_pct, carted_items, abandoned_value FROM ecommerce.gold.cart_conversion_by_price ORDER BY price_band"),
     dataset("attach", "SELECT attached_category, sessions, pct_of_phone_buyers, revenue FROM ecommerce.gold.attach_opportunity ORDER BY sessions DESC LIMIT 8"),
     dataset("repeat_buyers", """
@@ -167,8 +167,7 @@ layout = [
     pos(chart_widget("buyer_segments", "repeat_buyers", "buyer_segment", "users", "Users by Purchase Frequency"), 0, 28, 3, 6),
     pos(chart_widget("buyer_spend", "repeat_buyers", "buyer_segment", "total_spend", "Revenue by Buyer Segment"), 3, 28, 3, 6),
 
-    pos(table_widget("products_table", "top_products",
-                     ["product_id", "category_code", "brand", "views", "purchases", "revenue"],
+    pos(chart_widget("products_chart", "top_products", "product_id", "revenue",
                      "Top Products by Revenue"), 0, 34, 6, 8),
 
     # --- opportunity analysis: the actionable findings ---
@@ -182,8 +181,7 @@ layout = [
     pos(chart_widget("attach_chart", "attach", "attached_category", "sessions",
                      "What Phone Buyers Also Buy (attach rate only 2.1%)"), 3, 48, 3, 6),
 
-    pos(table_widget("dq_table", "data_quality",
-                     ["check_name", "affected_rows", "pct_affected", "business_impact"],
+    pos(chart_widget("dq_chart", "data_quality", "check_name", "pct_affected",
                      "Data Quality - read before trusting the numbers above"), 0, 54, 6, 7),
 ]
 
